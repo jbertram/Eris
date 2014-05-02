@@ -21,7 +21,7 @@
 package org.eris.messaging;
 
 /**
- * Thrown when the Receiver gets to an erroneous state.
+ * Thrown when the ErisReceiver gets to an erroneous state.
  */
 @SuppressWarnings("serial")
 public class ReceiverException extends MessagingException

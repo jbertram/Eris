@@ -26,17 +26,17 @@ package org.eris.messaging;
 public enum TrackerState
 {
     /**
-     * Message has been accepted by the remote peer.
+     * ErisMessage has been accepted by the remote peer.
      */
     ACCEPTED,
 
     /**
-     * Message has been rejected by the remote peer.
+     * ErisMessage has been rejected by the remote peer.
      */
     REJECTED,
 
     /**
-     * Message has been released by the remote peer.
+     * ErisMessage has been released by the remote peer.
      */
     RELEASED,
 

@@ -20,9 +20,9 @@
  */
 package org.eris;
 
-import org.eris.messaging.Connection;
+import org.eris.messaging.ErisConnection;
 import org.eris.messaging.ConnectionSettings;
-import org.eris.messaging.Message;
+import org.eris.messaging.ErisMessage;
 import org.eris.messaging.amqp.proton.MessagingImpl;
 import org.eris.messaging.server.InboundConnector;
 
@@ -31,9 +31,9 @@ import org.eris.messaging.server.InboundConnector;
  * It provides several methods for obtaining a connection which can then
  * be used to create the appropriate constructs to send and receive messages.
  * 
- * It also acts as a factory for Message objects.
+ * It also acts as a factory for ErisMessage objects.
  * 
- * <h4>Connection URL Syntax</h4>
+ * <h4>ErisConnection URL Syntax</h4>
  *
  *  The URL has the following form:
  *<pre>
@@ -58,44 +58,44 @@ public class Messaging
 {
     private Messaging() {}
     /**
-     * Provides a concrete instance of the Message interface that can be used for sending.
-     * @see Message
+     * Provides a concrete instance of the ErisMessage interface that can be used for sending.
+     * @see org.eris.messaging.ErisMessage
      */
-    public static Message message()
+    public static ErisMessage message()
     {
         return MessagingImpl.message();
     }
 
     /**
-     * Constructs a Connection object with the given URL. <br>
+     * Constructs a ErisConnection object with the given URL. <br>
      * This does not establish the underlying physical connection. 
      * The application needs to call connect() in order to establish the physical connection to the peer.
-     * @see Connection#connect()
+     * @see org.eris.messaging.ErisConnection#connect()
      */
-    public static Connection connection(String url)
+    public static ErisConnection connection(String url)
     {
         return MessagingImpl.connection(url);
     }
 
     /**
-     * Constructs a Connection object with the given host and port. <br>
+     * Constructs a ErisConnection object with the given host and port. <br>
      * This does not establish the underlying physical connection. 
      * The application needs to call connect() in order to establish the physical connection to the peer.
-     * @see Connection#connect()
+     * @see org.eris.messaging.ErisConnection#connect()
      */
-    public static Connection connection(String host, int port)
+    public static ErisConnection connection(String host, int port)
     {
         return MessagingImpl.connection(host, port);
     }
 
     /**
-     * Constructs a Connection object with the given ConnectionSettings.
+     * Constructs a ErisConnection object with the given ConnectionSettings.
      * @see ConnectionSettings
      * This does not establish the underlying physical connection. 
      * The application needs to call connect() in order to establish the physical connection to the peer.
-     * @see Connection#connect()
+     * @see org.eris.messaging.ErisConnection#connect()
      */
-    public static Connection connection(ConnectionSettings settings)
+    public static ErisConnection connection(ConnectionSettings settings)
     {
         return MessagingImpl.connection(settings);
     }

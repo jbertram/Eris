@@ -4,17 +4,19 @@ import org.apache.qpid.proton.amqp.messaging.Accepted;
 import org.apache.qpid.proton.amqp.messaging.Rejected;
 import org.apache.qpid.proton.amqp.messaging.Released;
 import org.apache.qpid.proton.amqp.transport.DeliveryState;
+import org.eris.messaging.Tracker;
 import org.eris.messaging.TrackerState;
 import org.eris.util.ConditionManager;
+import org.eris.util.ConditionManagerTimeoutException;
 
-public class TrackerImpl implements org.eris.messaging.Tracker
+public class TrackerImpl implements Tracker
 {
-    private final SessionImpl _ssn;
+    private final ErisSessionImpl _ssn;
     private TrackerState _state = null;
     private ConditionManager _pending = new ConditionManager(true);
     private boolean _settled = false;
 
-    TrackerImpl(SessionImpl ssn)
+    TrackerImpl(ErisSessionImpl ssn)
     {
         _ssn = ssn;
         _state = TrackerState.UNKNOWN;
@@ -60,7 +62,7 @@ public class TrackerImpl implements org.eris.messaging.Tracker
         }
     }
 
-    SessionImpl getSession()
+    ErisSessionImpl getSession()
     {
         return _ssn;
     }
@@ -71,11 +73,17 @@ public class TrackerImpl implements org.eris.messaging.Tracker
         return _state;
     }
 
-    @Override
-    public void awaitSettlement()
-    {
-        _pending.waitUntilFalse();
-    }
+   @Override
+   public void awaitSettlement()
+   {
+      _pending.waitUntilFalse();
+   }
+
+   @Override
+   public void awaitSettlement(long timeout) throws ConditionManagerTimeoutException
+   {
+      _pending.waitUntilFalse(timeout);
+   }
 
     @Override
     public boolean isSettled()

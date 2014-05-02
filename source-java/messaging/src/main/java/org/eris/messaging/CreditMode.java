@@ -31,7 +31,7 @@ package org.eris.messaging;
  * 
  * If the CreditMode is {@link CreditMode#EXPLICT}, the application needs to
  * explicitly manage it's message credit and use
- * {@link Receiver#setCapacity(int)} to issue credits when it is ready to
+ * {@link ErisReceiver#setCapacity(int)} to issue credits when it is ready to
  * process more messages.
  */
 public enum CreditMode

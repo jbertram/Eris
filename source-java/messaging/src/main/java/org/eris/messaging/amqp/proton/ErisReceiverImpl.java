@@ -7,32 +7,34 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Receiver;
 import org.eris.messaging.CreditMode;
+import org.eris.messaging.ErisMessage;
+import org.eris.messaging.ErisReceiver;
 
-public class ReceiverImpl implements org.eris.messaging.Receiver
+public class ErisReceiverImpl implements ErisReceiver
 {
     private String _address;
 
-    private SessionImpl _ssn;
+    private ErisSessionImpl _ssn;
 
-    private Receiver _receiver;
+    private Receiver _protonReceiver;
 
     private int _capacity = Integer.getInteger("eris.receiver.capacity", 1);
 
     private CreditMode _creditMode;
 
-    private LinkedBlockingQueue<org.eris.messaging.Message> _queue;
+    private LinkedBlockingQueue<ErisMessage> _queue;
 
     private AtomicInteger _unsettled = new AtomicInteger(0);
 
     private boolean _dynamic = false;
 
-    ReceiverImpl(String address, SessionImpl ssn, Receiver receiver, CreditMode creditMode)
+    ErisReceiverImpl(String address, ErisSessionImpl ssn, Receiver receiver, CreditMode creditMode)
             throws org.eris.messaging.TransportException
             {
         _address = address;
         _ssn = ssn;
-        _receiver = receiver;
-        _queue = new LinkedBlockingQueue<org.eris.messaging.Message>();
+        _protonReceiver = receiver;
+        _queue = new LinkedBlockingQueue<ErisMessage>();
         _creditMode = creditMode;
         if (_creditMode == CreditMode.AUTO && _capacity > 0)
         {
@@ -75,7 +77,7 @@ public class ReceiverImpl implements org.eris.messaging.Receiver
     }
 
     @Override
-    public org.eris.messaging.Message receive() throws org.eris.messaging.TransportException,
+    public ErisMessage receive() throws org.eris.messaging.TransportException,
     org.eris.messaging.ReceiverException
     {
         try
@@ -91,7 +93,7 @@ public class ReceiverImpl implements org.eris.messaging.Receiver
     }
 
     @Override
-    public org.eris.messaging.Message receive(long timeout) throws org.eris.messaging.TransportException,
+    public ErisMessage receive(long timeout) throws org.eris.messaging.TransportException,
     org.eris.messaging.ReceiverException, org.eris.messaging.TimeoutException
     {
         checkClosed();
@@ -101,7 +103,7 @@ public class ReceiverImpl implements org.eris.messaging.Receiver
                     "Since CreditMode is EXPLICIT, you need to explicity set the capacity before calling receive");
         }
         issuePreReceiveCredit();
-        org.eris.messaging.Message msg = null;
+        ErisMessage msg = null;
         try
         {
             if (timeout == 0)
@@ -161,18 +163,18 @@ public class ReceiverImpl implements org.eris.messaging.Receiver
     @Override
     public void close() throws org.eris.messaging.TransportException
     {
-        _ssn.closeLink(_receiver);
+        _ssn.closeLink(_protonReceiver);
     }
 
     void checkClosed() throws org.eris.messaging.ReceiverException
     {
-        if (_receiver.getLocalState() != EndpointState.ACTIVE)
+        if (_protonReceiver.getLocalState() != EndpointState.ACTIVE)
         {
-            throw new org.eris.messaging.ReceiverException("Receiver is closed");
+            throw new org.eris.messaging.ReceiverException("ErisReceiver is closed");
         }
     }
 
-    void enqueue(MessageImpl msg)
+    void enqueue(ErisMessageImpl msg)
     {
         try
         {
@@ -215,7 +217,7 @@ public class ReceiverImpl implements org.eris.messaging.Receiver
 
     void cancelPrevCredits() throws org.eris.messaging.TransportException
     {
-        _receiver.flow(0);
+        _protonReceiver.flow(0);
         _ssn.write();
     }
 
@@ -223,9 +225,9 @@ public class ReceiverImpl implements org.eris.messaging.Receiver
     {
         if (drain)
         {
-            _receiver.setDrain(true);
+            _protonReceiver.setDrain(true);
         }
-        _receiver.flow(credits);
+        _protonReceiver.flow(credits);
         _ssn.write();
     }
 
@@ -244,7 +246,7 @@ public class ReceiverImpl implements org.eris.messaging.Receiver
         return _dynamic;
     }
 
-    SessionImpl getSession()
+    ErisSessionImpl getSession()
     {
         return _ssn;
     }

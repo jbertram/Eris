@@ -20,6 +20,8 @@
  */
 package org.eris.messaging;
 
+import org.eris.util.ConditionManagerTimeoutException;
+
 /**
  * Provides a handle for tracking outgoing messages.
  */
@@ -30,11 +32,17 @@ public interface Tracker
      */
     public TrackerState getState();
 
-    /**
-     * Blocks until the delivery state changes from {@link TrackerState#UNKNOWN}
-     * to any of the other states.
-     */
-    public void awaitSettlement();
+   /**
+    * Blocks until the delivery state changes from {@link TrackerState#UNKNOWN}
+    * to any of the other states.
+    */
+   public void awaitSettlement();
+
+   /**
+    * Blocks until the delivery state changes from {@link TrackerState#UNKNOWN}
+    * to any of the other states or timeout elapses.
+    */
+   public void awaitSettlement(long timeout) throws ConditionManagerTimeoutException;
 
     /**
      * If SenderMode is {@link SenderMode#AT_MOST_ONCE}, this will return true

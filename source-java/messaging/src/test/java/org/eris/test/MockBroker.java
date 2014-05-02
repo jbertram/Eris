@@ -21,9 +21,12 @@ import org.apache.qpid.proton.engine.Receiver;
 import org.apache.qpid.proton.engine.Sasl;
 import org.apache.qpid.proton.engine.Sender;
 import org.apache.qpid.proton.engine.Session;
+import org.eris.logging.Logger;
 
 public class MockBroker
 {
+    Logger logger = Logger.get(MockBroker.class);
+
     enum State
     {
         NEW, AUTHENTICATING, CONNECTION_UP, FAILED
@@ -55,6 +58,7 @@ public class MockBroker
 
     public void doWait()
     {
+        logger.info("============ Waiting...");
         _driver.doWait(-1);
     }
 
@@ -63,44 +67,53 @@ public class MockBroker
         // We have only one listener
         if (_driver.listener() != null)
         {
-            System.out.println("Accepting Connection.");
-            Connector<State> ctor = _listener.accept();
+            logger.info("============ Accepting ErisConnection...");
+            Connector<State> connector = _listener.accept();
             Connection connection = Proton.connection();
             connection.setContainer("MockBroker");
-            ctor.setConnection(connection);
-            Sasl sasl = ctor.sasl();
-            sasl.server();
-            sasl.setMechanisms(new String[] { "ANONYMOUS" });
-            sasl.done(Sasl.SaslOutcome.PN_SASL_OK);
+            connector.setConnection(connection);
+//            Sasl sasl = connector.sasl();
+//            sasl.server();
+//            sasl.setMechanisms(new String[] { "ANONYMOUS" });
+//            sasl.done(Sasl.SaslOutcome.PN_SASL_OK);
+        }
+        else
+        {
+           logger.info("============ listener is null");
         }
     }
 
     public void processConnections() throws Exception
     {
-        Connector<State> ctor = _driver.connector();
-        while (ctor != null)
+        Connector<State> connector = _driver.connector();
+        if (connector == null)
+           logger.info("============ connector is: " + connector);
+
+        while (connector != null)
         {
-            // process any data coming from the network, this will update the
+           logger.info("============ connector is: " + connector);
+
+           // process any data coming from the network, this will update the
             // engine's view of the state of the remote clients
-            ctor.process();
-            serviceConnector(ctor);
+            connector.process();
+            serviceConnector(connector);
             // now generate any outbound network data generated in response to
             // any work done by the engine.
-            ctor.process();
+            connector.process();
 
-            if (ctor.isClosed())
+            if (connector.isClosed())
             {
-                ctor.destroy();
+                connector.destroy();
             }
 
-            ctor = _driver.connector();
+            connector = _driver.connector();
         }
     }
 
-    private void serviceConnector(Connector<State> ctor) throws Exception
+    private void serviceConnector(Connector<State> connector) throws Exception
     {
-        Connection con = ctor.getConnection();
-        if (con == null)
+        Connection connection = connector.getConnection();
+        if (connection == null)
         {
             return;
         }
@@ -109,38 +122,37 @@ public class MockBroker
         // that may be pending.
 
         // initialize the connection if it's new
-        if (con.getLocalState() == EndpointState.UNINITIALIZED)
+        if (connection.getLocalState() == EndpointState.UNINITIALIZED)
         {
-            con.open();
-            System.out.println("Connection Opened.");
+            connection.open();
+            logger.info("ErisConnection Opened.");
         }
 
         // open all pending sessions
-        Session ssn = con.sessionHead(UNINIT, ACTIVE);
-        while (ssn != null)
+        Session session = connection.sessionHead(UNINIT, ACTIVE);
+        while (session != null)
         {
-            ssn.open();
-            System.out.println("Session Opened.");
-            ssn = con.sessionHead(UNINIT, ACTIVE);
+            session.open();
+            logger.info("ErisSession Opened.");
+            session = connection.sessionHead(UNINIT, ACTIVE);
         }
 
         // configure and open any pending links
-        Link link = con.linkHead(UNINIT, ACTIVE);
+        Link link = connection.linkHead(UNINIT, ACTIVE);
         while (link != null)
         {
-
             setupLink(link);
-            System.out.println("Link Opened.");
-            link = con.linkHead(UNINIT, ACTIVE);
+            logger.info("Link Opened.");
+            link = connection.linkHead(UNINIT, ACTIVE);
         }
 
         // Step 2: Now drain all the pending deliveries from the connection's
         // work queue and process them
 
-        Delivery delivery = con.getWorkHead();
+        Delivery delivery = connection.getWorkHead();
         while (delivery != null)
         {
-            System.out.println("Process delivery " + String.valueOf(delivery.getTag()));
+            logger.info("Process delivery " + String.valueOf(delivery.getTag()));
 
             if (delivery.isReadable()) // inbound data available
             {
@@ -154,7 +166,7 @@ public class MockBroker
             // very basic message handling
             if (delivery.getRemoteState() != null)
             {
-                System.out.println("Remote has seen it, Settling delivery " + String.valueOf(delivery.getTag()));
+                logger.info("Remote has seen it, Settling delivery " + String.valueOf(delivery.getTag()));
                 // once we know the remote has seen the message, we can
                 // release the delivery.
                 delivery.settle();
@@ -168,28 +180,28 @@ public class MockBroker
         // also.
 
         // teardown any terminating links
-        link = con.linkHead(ACTIVE, CLOSED);
+        link = connection.linkHead(ACTIVE, CLOSED);
         while (link != null)
         {
             link.close();
-            System.out.println("Link Closed");
-            link = con.linkHead(ACTIVE, CLOSED);
+            logger.info("Link Closed");
+            link = connection.linkHead(ACTIVE, CLOSED);
         }
 
         // teardown any terminating sessions
-        ssn = con.sessionHead(ACTIVE, CLOSED);
-        while (ssn != null)
+        session = connection.sessionHead(ACTIVE, CLOSED);
+        while (session != null)
         {
-            ssn.close();
-            System.out.println("Session Closed");
-            ssn = con.sessionHead(ACTIVE, CLOSED);
+            session.close();
+            logger.info("ErisSession Closed");
+            session = connection.sessionHead(ACTIVE, CLOSED);
         }
 
         // teardown the connection if it's terminating
-        if (con.getRemoteState() == EndpointState.CLOSED)
+        if (connection.getRemoteState() == EndpointState.CLOSED)
         {
-            System.out.println("Connection Closed");
-            con.close();
+            logger.info("ErisConnection Closed");
+            connection.close();
         }
     }
 
@@ -200,16 +212,16 @@ public class MockBroker
 
         if (link instanceof Sender)
         {
-            System.out.println("Opening Link from Consumer for queue: " + srcAddress);
+            logger.info("Opening Link from Consumer for queue: " + srcAddress);
             if (!_queues.containsKey(srcAddress))
             {
-                System.out.println("Queue " + srcAddress + " does not exist! Creating one");
+                logger.info("Queue " + srcAddress + " does not exist! Creating one");
                 _queues.put(targetAddress, new ArrayList<byte[]>());
             }
         }
         else
         {
-            System.out.println("Opening Link from Producer for queue: " + targetAddress);
+            logger.info("Opening Link from Producer for queue: " + targetAddress);
             if (!_queues.containsKey(targetAddress))
             {
                 _queues.put(targetAddress, new ArrayList<byte[]>());
@@ -247,7 +259,7 @@ public class MockBroker
         List<byte[]> queue;
         if (!_queues.containsKey(name))
         {
-            System.out.println("Error: cannot sent to mailbox " + name + " - dropping message.");
+            logger.info("Error: cannot sent to mailbox " + name + " - dropping message.");
         }
         else
         {
@@ -276,16 +288,17 @@ public class MockBroker
     {
         Sender sender = (Sender) d.getLink();
         String name = sender.getRemoteSource().getAddress();
-        System.out.println("Sending msg from Queue : " + name);
+        logger.info("Sending msg from Queue : " + name);
         byte[] msg;
-        if (_queues.containsKey(name))
+        if (_queues.containsKey(name) && _queues.get(name).size() > 0)
         {
-            msg = _queues.get(name).remove(0);
-            System.out.println("Fetching message " + new String(msg));
+            List<byte[]> queue = _queues.get(name);
+            msg = queue.remove(0);
+            logger.info("Fetching message " + new String(msg));
         }
         else
         {
-            System.out.println("Warning: queue " + name + " is empty. No messages to send.");
+            logger.warn("Warning: queue " + name + " is empty. No messages to send.");
             return;
         }
         sender.send(msg, 0, msg.length);

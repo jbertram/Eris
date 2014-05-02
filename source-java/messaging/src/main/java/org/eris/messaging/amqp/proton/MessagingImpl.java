@@ -20,29 +20,29 @@
 */
 package org.eris.messaging.amqp.proton;
 
-import org.eris.messaging.Connection;
+import org.eris.messaging.ErisConnection;
 import org.eris.messaging.ConnectionSettings;
-import org.eris.messaging.Message;
+import org.eris.messaging.ErisMessage;
 
 public class MessagingImpl
 {
-	public static Message message()
+	public static ErisMessage message()
 	{
-		return new MessageImpl();
+		return new ErisMessageImpl();
 	}
 	
-	public static Connection connection(String url)
+	public static ErisConnection connection(String url)
 	{
-		return new ConnectionImpl(url);
+		return new ErisConnectionImpl(url);
 	}
 	
-	public static Connection connection(String host, int port)
+	public static ErisConnection connection(String host, int port)
 	{
-		return new ConnectionImpl(host, port);
+		return new ErisConnectionImpl(host, port);
 	}
 	
-	public static Connection connection(ConnectionSettings settings)
+	public static ErisConnection connection(ConnectionSettings settings)
 	{
-		return new ConnectionImpl(settings);
+		return new ErisConnectionImpl(settings);
 	}
 }

@@ -41,10 +41,14 @@ import org.apache.qpid.proton.engine.Sender;
 import org.apache.qpid.proton.engine.Session;
 import org.eris.messaging.CompletionListener;
 import org.eris.messaging.CreditMode;
+import org.eris.messaging.ErisMessage;
+import org.eris.messaging.ErisReceiver;
+import org.eris.messaging.ErisSender;
+import org.eris.messaging.ErisSession;
 import org.eris.messaging.ReceiverMode;
 import org.eris.messaging.SenderMode;
 
-public class SessionImpl implements org.eris.messaging.Session
+public class ErisSessionImpl implements ErisSession
 {
     private static final DeliveryState ACCEPTED = Accepted.getInstance();
 
@@ -52,33 +56,33 @@ public class SessionImpl implements org.eris.messaging.Session
 
     private static final DeliveryState RELEASED = Released.getInstance();
 
-    private ConnectionImpl _conn;
+    private ErisConnectionImpl _conn;
 
-    private Session _session;
+    private Session _protonSession;
 
     private AtomicLong _deliveryTag = new AtomicLong(0);
 
-    private AtomicLong _incommingSequence = new AtomicLong(0);
+    private AtomicLong _incomingSequence = new AtomicLong(0);
 
     private CompletionListener _completionListener = null;
 
-    private final Map<Sender, SenderImpl> _senders = new ConcurrentHashMap<Sender, SenderImpl>(2);
+    private final Map<Sender, ErisSenderImpl> _senders = new ConcurrentHashMap<Sender, ErisSenderImpl>(2);
 
-    private final Map<Receiver, ReceiverImpl> _receivers = new ConcurrentHashMap<Receiver, ReceiverImpl>(2);
+    private final Map<Receiver, ErisReceiverImpl> _receivers = new ConcurrentHashMap<Receiver, ErisReceiverImpl>(2);
 
     private final Map<Long, Delivery> _unsettled = new ConcurrentHashMap<Long, Delivery>();
 
     private final String _id;
 
-    SessionImpl(ConnectionImpl conn, Session ssn)
+    ErisSessionImpl(ErisConnectionImpl conn, Session ssn)
     {
         _id = UUID.randomUUID().toString();
         _conn = conn;
-        _session = ssn;
+        _protonSession = ssn;
     }
 
     @Override
-    public org.eris.messaging.Sender createSender(String address, SenderMode mode)
+    public ErisSender createSender(String address, SenderMode mode)
             throws org.eris.messaging.TransportException, org.eris.messaging.SessionException
     {
         checkPreConditions();
@@ -88,12 +92,12 @@ public class SessionImpl implements org.eris.messaging.Session
         if (address == null || address.isEmpty() || address.equals("#"))
         {
             String temp = UUID.randomUUID().toString();
-            sender = _session.sender(temp);
+            sender = _protonSession.sender(temp);
             target.setDynamic(true);
         }
         else
         {
-            sender = _session.sender(address);
+            sender = _protonSession.sender(address);
             target.setAddress(address);
         }
         sender.setTarget(target);
@@ -102,7 +106,7 @@ public class SessionImpl implements org.eris.messaging.Session
                 : SenderSettleMode.UNSETTLED);
         sender.open();
 
-        SenderImpl senderImpl = new SenderImpl(address, this, sender);
+        ErisSenderImpl senderImpl = new ErisSenderImpl(address, this, sender);
         senderImpl.setDynamicAddress(target.getDynamic());
         _senders.put(sender, senderImpl);
         sender.setContext(senderImpl);
@@ -111,14 +115,14 @@ public class SessionImpl implements org.eris.messaging.Session
     }
 
     @Override
-    public org.eris.messaging.Receiver createReceiver(String address, ReceiverMode mode)
+    public ErisReceiver createReceiver(String address, ReceiverMode mode)
             throws org.eris.messaging.TransportException, org.eris.messaging.SessionException
     {
         return createReceiver(address, mode, CreditMode.AUTO);
     }
 
     @Override
-    public org.eris.messaging.Receiver createReceiver(String address, ReceiverMode mode, CreditMode creditMode)
+    public ErisReceiver createReceiver(String address, ReceiverMode mode, CreditMode creditMode)
             throws org.eris.messaging.TransportException, org.eris.messaging.SessionException
     {
         checkPreConditions();
@@ -128,12 +132,12 @@ public class SessionImpl implements org.eris.messaging.Session
         if (address == null || address.isEmpty() || address.equals("#"))
         {
             String temp = UUID.randomUUID().toString();
-            receiver = _session.receiver(temp);
+            receiver = _protonSession.receiver(temp);
             source.setDynamic(true);
         }
         else
         {
-            receiver = _session.receiver(address);
+            receiver = _protonSession.receiver(address);
             source.setAddress(address);
         }
         receiver.setSource(source);
@@ -155,7 +159,7 @@ public class SessionImpl implements org.eris.messaging.Session
         }
         receiver.open();
 
-        ReceiverImpl receiverImpl = new ReceiverImpl(address, this, receiver, creditMode);
+        ErisReceiverImpl receiverImpl = new ErisReceiverImpl(address, this, receiver, creditMode);
         receiverImpl.setDynamicAddress(source.getDynamic());
         _receivers.put(receiver, receiverImpl);
         receiver.setContext(receiverImpl);
@@ -164,19 +168,19 @@ public class SessionImpl implements org.eris.messaging.Session
     }
 
     @Override
-    public void accept(org.eris.messaging.Message msg, int... flags) throws org.eris.messaging.SessionException
+    public void accept(ErisMessage msg, int... flags) throws org.eris.messaging.SessionException
     {
         setDispositionAndSettleIfRequired(convertMessage(msg), ACCEPTED);
     }
 
     @Override
-    public void reject(org.eris.messaging.Message msg, int... flags) throws org.eris.messaging.SessionException
+    public void reject(ErisMessage msg, int... flags) throws org.eris.messaging.SessionException
     {
         setDispositionAndSettleIfRequired(convertMessage(msg), REJECTED);
     }
 
     @Override
-    public void release(org.eris.messaging.Message msg, int... flags) throws org.eris.messaging.SessionException
+    public void release(ErisMessage msg, int... flags) throws org.eris.messaging.SessionException
     {
         setDispositionAndSettleIfRequired(convertMessage(msg), RELEASED);
     }
@@ -184,7 +188,7 @@ public class SessionImpl implements org.eris.messaging.Session
     @Override
     public void close() throws org.eris.messaging.TransportException
     {
-        _conn.closeSession(_session);
+        _conn.closeSession(_protonSession);
     }
 
     @Override
@@ -193,14 +197,14 @@ public class SessionImpl implements org.eris.messaging.Session
         _completionListener = l;
     }
 
-    IncommingMessage convertMessage(org.eris.messaging.Message msg) throws org.eris.messaging.SessionException
+    IncomingErisMessage convertMessage(ErisMessage msg) throws org.eris.messaging.SessionException
     {
-        if (!(msg instanceof IncommingMessage))
+        if (!(msg instanceof IncomingErisMessage))
         {
             throw new org.eris.messaging.SessionException("The supplied message is not a valid type");
         }
 
-        IncommingMessage m = (IncommingMessage) msg;
+        IncomingErisMessage m = (IncomingErisMessage) msg;
 
         if (m.getSessionID() != _id)
         {
@@ -210,14 +214,14 @@ public class SessionImpl implements org.eris.messaging.Session
         return m;
     }
 
-    void setDispositionAndSettleIfRequired(IncommingMessage msg, DeliveryState state)
+    void setDispositionAndSettleIfRequired(IncomingErisMessage msg, DeliveryState state)
     {
         Delivery d = _unsettled.get(msg.getSequence());
         d.disposition(state);
         if (d.getLink().getReceiverSettleMode() == ReceiverSettleMode.FIRST)
         {
             d.settle();
-            ((ReceiverImpl) d.getLink().getContext()).decrementUnsettledCount();
+            ((ErisReceiverImpl) d.getLink().getContext()).decrementUnsettledCount();
         }
     }
 
@@ -226,12 +230,12 @@ public class SessionImpl implements org.eris.messaging.Session
         return _deliveryTag.incrementAndGet();
     }
 
-    long getNextIncommingSequence()
+    long getNextIncomingSequence()
     {
-        return _incommingSequence.incrementAndGet();
+        return _incomingSequence.incrementAndGet();
     }
 
-    ConnectionImpl getConnection()
+    ErisConnectionImpl getConnection()
     {
         return _conn;
     }
@@ -257,9 +261,9 @@ public class SessionImpl implements org.eris.messaging.Session
 
     void checkPreConditions() throws org.eris.messaging.SessionException
     {
-        if (_session.getLocalState() != EndpointState.ACTIVE)
+        if (_protonSession.getLocalState() != EndpointState.ACTIVE)
         {
-            throw new org.eris.messaging.SessionException("Session is closed");
+            throw new org.eris.messaging.SessionException("ErisSession is closed");
         }
     }
 

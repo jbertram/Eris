@@ -47,7 +47,7 @@ public interface InboundConnection
     void redirect();
 
     /**
-     * Once you accept the Connection, all state changes are notified via the
+     * Once you accept the ErisConnection, all state changes are notified via the
      * event Listener.
      */
     void setEventListener();

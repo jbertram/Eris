@@ -30,6 +30,7 @@ public class IoNetworkConnection implements NetworkConnection<ByteBuffer>
     public IoNetworkConnection(ConnectionSettings settings, Socket socket) throws TransportException
     {
         _settings = settings;
+       _socket = socket;
         try
         {
             _socket.setReuseAddress(true);

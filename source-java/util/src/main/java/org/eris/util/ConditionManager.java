@@ -41,6 +41,7 @@ public class ConditionManager
             {
                 _value = value;
                 _lock.notifyAll();
+//                new Exception("trace").printStackTrace();
             }
         }
     }

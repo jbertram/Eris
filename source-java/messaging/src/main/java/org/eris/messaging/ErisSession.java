@@ -22,20 +22,20 @@ package org.eris.messaging;
 
 /**
  * 
- * Represents a logical <i>Session</i> for exchanging of messages.
+ * Represents a logical <i>ErisSession</i> for exchanging of messages.
  * 
  * <h4>Exceptions</h4>
  * <ul>
  * <li>TransportException : Thrown when the underlying transport fails.</li>>
- * <li>SessionException   : Thrown when the Session gets to an erroneous state.</li>
+ * <li>SessionException   : Thrown when the ErisSession gets to an erroneous state.</li>
  * </ul>
  */
-public interface Session
+public interface ErisSession
 {
     /**
-     * Flag for use with {@link Session#accept(Message, int...)},
-     * {@link Session#reject(Message, int...)} and
-     * {@link Session#release(Message, int...)} methods. When used with the
+     * Flag for use with {@link ErisSession#accept(ErisMessage, int...)},
+     * {@link ErisSession#reject(ErisMessage, int...)} and
+     * {@link ErisSession#release(ErisMessage, int...)} methods. When used with the
      * above methods, all messages upto that point will be affected by the given
      * action.
      */
@@ -54,7 +54,7 @@ public interface Session
      *            the application.
      * @see SenderMode
      */
-    Sender createSender(String address, SenderMode mode) throws TransportException, SessionException;
+    ErisSender createSender(String address, SenderMode mode) throws TransportException, SessionException;
 
     /**
      * Establishes a logical Link with the remote peer for receiving messages
@@ -68,7 +68,7 @@ public interface Session
      *            by the application.
      * @see ReceiverMode
      */
-    Receiver createReceiver(String address, ReceiverMode mode) throws TransportException, SessionException;
+    ErisReceiver createReceiver(String address, ReceiverMode mode) throws TransportException, SessionException;
 
     /**
      * Establishes a logical Link with the remote peer for receiving messages
@@ -85,26 +85,26 @@ public interface Session
      * @see ReceiverMode
      * @see CreditMode
      */
-    Receiver createReceiver(String address, ReceiverMode mode, CreditMode creditMode) throws TransportException,
+    ErisReceiver createReceiver(String address, ReceiverMode mode, CreditMode creditMode) throws TransportException,
             SessionException;
 
     /**
      * Accepts the given message or all messages upto that point if the
-     * {@link Session#CUMULATIVE} flag is used.
+     * {@link ErisSession#CUMULATIVE} flag is used.
      */
-    void accept(Message msg, int... flags) throws SessionException;
+    void accept(ErisMessage msg, int... flags) throws SessionException;
 
     /**
      * Rejects the given message or all messages upto that point if the
-     * {@link Session#CUMULATIVE} flag is used.
+     * {@link ErisSession#CUMULATIVE} flag is used.
      */
-    void reject(Message msg, int... flags) throws SessionException;
+    void reject(ErisMessage msg, int... flags) throws SessionException;
 
     /**
      * Release the given message or all messages upto that point if the
-     * {@link Session#CUMULATIVE} flag is used.
+     * {@link ErisSession#CUMULATIVE} flag is used.
      */
-    void release(Message msg, int... flags) throws SessionException;
+    void release(ErisMessage msg, int... flags) throws SessionException;
 
     /**
      * The {@link CompletionListener} provides a way to receive message
@@ -115,9 +115,9 @@ public interface Session
     void setCompletionListener(CompletionListener l) throws SessionException;
 
     /**
-     * Terminates the Session and free any resources associated with this
-     * Session. If there are any active Links, it will close them first before
-     * closing the Session.
+     * Terminates the ErisSession and free any resources associated with this
+     * ErisSession. If there are any active Links, it will close them first before
+     * closing the ErisSession.
      */
     void close() throws TransportException;
 }

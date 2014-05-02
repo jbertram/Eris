@@ -21,7 +21,7 @@
 package org.eris.messaging;
 
 /**
- * Thrown when the Session gets to an erroneous state.
+ * Thrown when the ErisSession gets to an erroneous state.
  */
 @SuppressWarnings("serial")
 public class SessionException extends MessagingException

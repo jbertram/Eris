@@ -25,26 +25,26 @@ import java.util.Map;
 import org.eris.Messaging;
 
 /**
- * Provides a representation of a <i>Message</i>.
+ * Provides a representation of a <i>ErisMessage</i>.
  * 
  * <h4>For Sending</h4> The application can use {@link Messaging#message()} to
  * create a message that can be used or sending. To set the content use
- * {@link Message#setContent(Object)} and the various setter method for setting
+ * {@link ErisMessage#setContent(Object)} and the various setter method for setting
  * message properties.
  * 
  * <pre>
  * {@code
- * Message m = Messaging.message();
+ * ErisMessage m = Messaging.message();
  * m.setAddress("foo/bar");
  * m.setContent("Hello World");
  * }
  * </pre>
  * 
- * <h4>Receiving</h4> The application can use {@link Message#getContent()} for
+ * <h4>Receiving</h4> The application can use {@link ErisMessage#getContent()} for
  * getting the content and the various get methods for accessing the message
  * properties.
  */
-public interface Message
+public interface ErisMessage
 {
     short DEFAULT_PRIORITY = 4;
 

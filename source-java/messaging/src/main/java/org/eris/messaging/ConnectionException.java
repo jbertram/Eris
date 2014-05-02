@@ -21,7 +21,7 @@
 package org.eris.messaging;
 
 /**
- * Thrown when the Connection gets to an erroneous state.
+ * Thrown when the ErisConnection gets to an erroneous state.
  */
 @SuppressWarnings("serial")
 public class ConnectionException extends MessagingException

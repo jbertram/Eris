@@ -10,19 +10,20 @@ import org.apache.qpid.proton.amqp.messaging.Data;
 import org.apache.qpid.proton.amqp.messaging.DeliveryAnnotations;
 import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
 import org.apache.qpid.proton.message.Message;
+import org.eris.messaging.ErisMessage;
 
 @SuppressWarnings("rawtypes")
-public class MessageImpl implements org.eris.messaging.Message
+public class ErisMessageImpl implements ErisMessage
 {
 	private Message _msg;
 	private Object _content;
 	
-	MessageImpl()
+	ErisMessageImpl()
 	{
 		_msg = Proton.message();
 	}
 
-	MessageImpl(Message msg)
+	ErisMessageImpl(Message msg)
 	{
 		_msg = msg;
 	}

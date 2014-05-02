@@ -22,23 +22,23 @@ package org.eris.messaging.amqp.proton;
 
 import org.apache.qpid.proton.message.Message;
 
-public class IncommingMessage extends MessageImpl
+public class IncomingErisMessage extends ErisMessageImpl
 {
-    private String _ssnID;
+    private String _sessionID;
     private String _deliveryTag;
     private long _sequence;
     
-    IncommingMessage(String ssnID, String deliveryTag, long sequence, Message msg)
+    IncomingErisMessage(String ssnID, String deliveryTag, long sequence, Message msg)
     {
         super(msg);
-        _ssnID = ssnID;
+        _sessionID = ssnID;
         _deliveryTag = deliveryTag;
         _sequence = sequence;
     }
 
     String getSessionID()
     {
-        return _ssnID;
+        return _sessionID;
     }
 
     String getDeliveryTag()

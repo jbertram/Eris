@@ -27,19 +27,24 @@ import org.apache.qpid.proton.engine.Delivery;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Sender;
 import org.apache.qpid.proton.message.Message;
+import org.eris.messaging.ErisMessage;
+import org.eris.messaging.ErisSender;
+import org.eris.messaging.SenderException;
+import org.eris.messaging.Tracker;
+import org.eris.messaging.TransportException;
 
-public class SenderImpl implements org.eris.messaging.Sender 
+public class ErisSenderImpl implements ErisSender
 {
     private String _address;
-    private SessionImpl _ssn;
-    private Sender _sender;
+    private ErisSessionImpl _erisSession;
+    private Sender _protonSender;
     private boolean _dynamic = false;
 
-    SenderImpl(String address, SessionImpl ssn, Sender sender)
+    ErisSenderImpl(String address, ErisSessionImpl ssn, Sender sender)
     {
         _address = address;
-        _ssn = ssn;
-        _sender = sender;
+        _erisSession = ssn;
+        _protonSender = sender;
     }
 
     @Override
@@ -50,40 +55,40 @@ public class SenderImpl implements org.eris.messaging.Sender
 
     @Override
     // Need to handle buffer overflows
-    public org.eris.messaging.Tracker send(org.eris.messaging.Message msg) throws org.eris.messaging.SenderException, org.eris.messaging.TransportException
+    public Tracker send(ErisMessage msg) throws SenderException, TransportException
     {
-        if (_sender.getLocalState() == EndpointState.CLOSED || _sender.getRemoteState() == EndpointState.CLOSED)
+        if (_protonSender.getLocalState() == EndpointState.CLOSED || _protonSender.getRemoteState() == EndpointState.CLOSED)
         {
-            throw new org.eris.messaging.SenderException("Sender closed");
+            throw new SenderException("ErisSender closed");
         }
 
-        if (msg instanceof MessageImpl)
+        if (msg instanceof ErisMessageImpl)
         {
-            byte[] tag = longToBytes(_ssn.getNextDeliveryTag());
-            Delivery delivery = _sender.delivery(tag);
-            TrackerImpl tracker = new TrackerImpl(_ssn);
+            byte[] tag = longToBytes(_erisSession.getNextDeliveryTag());
+            Delivery delivery = _protonSender.delivery(tag);
+            TrackerImpl tracker = new TrackerImpl(_erisSession);
             delivery.setContext(tracker);
-            if (_sender.getSenderSettleMode() == SenderSettleMode.SETTLED)
+            if (_protonSender.getSenderSettleMode() == SenderSettleMode.SETTLED)
             {
                 delivery.settle();
                 tracker.markSettled();
             }
 
-            Message m = ((MessageImpl) msg).getProtocolMessage();
+            Message m = ((ErisMessageImpl) msg).getProtocolMessage();
             if (m.getAddress() == null)
             {
                 m.setAddress(_address);
             }
             byte[] buffer = new byte[1024];
             int encoded = m.encode(buffer, 0, buffer.length);
-            _sender.send(buffer, 0, encoded);
-            _sender.advance();
-            _ssn.write();
+            _protonSender.send(buffer, 0, encoded);
+            _protonSender.advance();
+            _erisSession.write();
             return tracker;
         }
         else
         {
-            throw new org.eris.messaging.SenderException("Unsupported message implementation");
+            throw new SenderException("Unsupported message implementation");
         }
     }
 
@@ -95,31 +100,31 @@ public class SenderImpl implements org.eris.messaging.Sender
     }
 
     @Override
-    public void offerCredits(int credits) throws org.eris.messaging.SenderException, org.eris.messaging.TransportException
+    public void offerCredits(int credits) throws SenderException, TransportException
     {
         checkPreConditions();
-        _sender.offer(credits);
-        _ssn.write();
+        _protonSender.offer(credits);
+        _erisSession.write();
     }
 
     @Override
-    public int getUnsettled() throws org.eris.messaging.SenderException
+    public int getUnsettled() throws SenderException
     {
         checkPreConditions();
-        return _sender.getUnsettled();
+        return _protonSender.getUnsettled();
     }
 
     @Override
-    public void close() throws org.eris.messaging.TransportException
+    public void close() throws TransportException
     {
-        _ssn.closeLink(_sender);
+        _erisSession.closeLink(_protonSender);
     }
 
-    void checkPreConditions() throws org.eris.messaging.SenderException
+    void checkPreConditions() throws SenderException
     {
-        if (_sender.getLocalState() != EndpointState.ACTIVE)
+        if (_protonSender.getLocalState() != EndpointState.ACTIVE)
         {
-            throw new org.eris.messaging.SenderException("Sender is closed");
+            throw new SenderException("ErisSender is closed");
         }
     }
 

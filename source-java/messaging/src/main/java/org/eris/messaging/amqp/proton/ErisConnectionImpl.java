@@ -40,15 +40,17 @@ import org.apache.qpid.proton.engine.Session;
 import org.apache.qpid.proton.engine.Transport;
 import org.apache.qpid.proton.message.Message;
 import org.eris.logging.Logger;
+import org.eris.messaging.ErisConnection;
+import org.eris.messaging.ErisSession;
 import org.eris.messaging.ReceiverMode;
 import org.eris.messaging.SenderMode;
 import org.eris.messaging.Tracker;
 import org.eris.threading.Threading;
 import org.eris.transport.TransportException;
 
-public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, org.eris.messaging.Connection
+public class ErisConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, ErisConnection
 {
-    private static final Logger _logger = Logger.get(ConnectionImpl.class);
+    private static final Logger _logger = Logger.get(ErisConnectionImpl.class);
 
     enum State
     {
@@ -67,7 +69,7 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
 
     private State _state = State.UNINITIALIZED;
 
-    private final Map<Session, SessionImpl> _sessionMap = new ConcurrentHashMap<Session, SessionImpl>();
+    private final Map<Session, ErisSessionImpl> _sessionMap = new ConcurrentHashMap<Session, ErisSessionImpl>();
 
     private final LinkedBlockingQueue<TrackerImpl> _notificationQueue = new LinkedBlockingQueue<TrackerImpl>();
 
@@ -75,17 +77,17 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
 
     private Thread _notificationThread = null;
 
-    public ConnectionImpl(String url)
+    public ErisConnectionImpl(String url)
     {
         this(new ConnectionSettingsImpl(url));        
     }
 
-    public ConnectionImpl(String host, int port)
+    public ErisConnectionImpl(String host, int port)
     {
         this(new ConnectionSettingsImpl(host, port));
     }
 
-    public ConnectionImpl(org.eris.messaging.ConnectionSettings settings)
+    public ErisConnectionImpl(org.eris.messaging.ConnectionSettings settings)
     {
         _settings = settings;
         setupNotifications();
@@ -136,7 +138,7 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
     }
 
     @Override
-    public org.eris.messaging.Session createSession() throws org.eris.messaging.TransportException,
+    public ErisSession createSession() throws org.eris.messaging.TransportException,
     org.eris.messaging.ConnectionException, org.eris.messaging.TimeoutException
     {
         synchronized (_lock)
@@ -147,10 +149,10 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
             }
             else if (_state != State.ACTIVE)
             {
-                throw new org.eris.messaging.ConnectionException("Connection is closed");
+                throw new org.eris.messaging.ConnectionException("ErisConnection is closed");
             }
             Session ssn = _connection.session();
-            SessionImpl session = new SessionImpl(this, ssn);
+            ErisSessionImpl session = new ErisSessionImpl(this, ssn);
             _sessionMap.put(ssn, session);
             ssn.open();
             write();
@@ -303,11 +305,11 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
         }
         Message msg = Proton.message();
         msg.decode(buffer, 0, read);
-        ReceiverImpl recv = (ReceiverImpl)receiver.getContext();
+        ErisReceiverImpl recv = (ErisReceiverImpl)receiver.getContext();
         String tag = String.valueOf(delivery.getTag());
-        long sequence = recv.getSession().getNextIncommingSequence();
+        long sequence = recv.getSession().getNextIncomingSequence();
         recv.getSession().addUnsettled(sequence, delivery);
-        recv.enqueue(new IncommingMessage(recv.getSession().getID(), tag, sequence, msg));
+        recv.enqueue(new IncomingErisMessage(recv.getSession().getID(), tag, sequence, msg));
     }
 
     void processUpdate(Delivery delivery)
@@ -337,7 +339,7 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
             if (delivery.remotelySettled() && link.getReceiverSettleMode() == ReceiverSettleMode.SECOND)
             {
                 delivery.settle();
-                ((ReceiverImpl)link.getContext()).decrementUnsettledCount();
+                ((ErisReceiverImpl)link.getContext()).decrementUnsettledCount();
             }
         }
     }
@@ -360,7 +362,7 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
         {
             if (link instanceof Sender)
             {
-                SenderImpl sender = (SenderImpl)link.getContext();
+                ErisSenderImpl sender = (ErisSenderImpl)link.getContext();
                 if (sender.isDynamicAddress())
                 {
                     sender.setAddress(link.getRemoteTarget().getAddress());
@@ -368,7 +370,7 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
             }
             else
             {
-                ReceiverImpl receiver = (ReceiverImpl)link.getContext();
+                ErisReceiverImpl receiver = (ErisReceiverImpl)link.getContext();
                 if (receiver.isDynamicAddress())
                 {
                     receiver.setAddress(link.getRemoteSource().getAddress());
@@ -380,6 +382,8 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
         link = _connection.linkHead(EndpointStateHelper.ANY, EndpointStateHelper.CLOSED);
         while (link != null)
         {
+            if (link.getRemoteCondition() != null)
+               _logger.error(link.getRemoteCondition().toString());
             link.close();
             _sessionMap.get(link.getSession()).linkClosed(link);
             link = link.next(EndpointStateHelper.ANY, EndpointStateHelper.CLOSED);
@@ -441,43 +445,43 @@ public class ConnectionImpl implements org.eris.transport.Receiver<ByteBuffer>, 
 
     public static void main(String[] args) throws Exception
     {
-        ConnectionImpl con = new ConnectionImpl("localhost", 5672);
+        ErisConnectionImpl con = new ErisConnectionImpl("localhost", 5672);
         con.connect();
-        SessionImpl ssn = (SessionImpl) con.createSession();
+        ErisSessionImpl ssn = (ErisSessionImpl) con.createSession();
         ssn.setCompletionListener(new org.eris.messaging.CompletionListener(){
 
             @Override
             public void completed(Tracker t)
             {
-                System.out.println("Got notified of message completion");
+                _logger.info("Got notified of message completion");
 
             }});
 
-        /*SenderImpl sender = (SenderImpl) ssn.createSender("#", SenderMode.AT_LEAST_ONCE);
-        MessageImpl msg = new MessageImpl();
+        /*ErisSenderImpl sender = (ErisSenderImpl) ssn.createSender("#", SenderMode.AT_LEAST_ONCE);
+        ErisMessageImpl msg = new ErisMessageImpl();
         msg.setContent("Hello World");
         Tracker t = sender.send(msg);
         t.awaitSettlement();
 
-        ReceiverImpl receiver = (ReceiverImpl) ssn.createReceiver("#",ReceiverMode.AT_LEAST_ONCE);
-        msg = (MessageImpl)receiver.receive();
+        ErisReceiverImpl receiver = (ErisReceiverImpl) ssn.createReceiver("#",ReceiverMode.AT_LEAST_ONCE);
+        msg = (ErisMessageImpl)receiver.receive();
         ssn.accept(msg);
         System.out.println("Msg : " + msg.getContent());
         con.close();*/
 
-        ReceiverImpl receiver = (ReceiverImpl) ssn.createReceiver("#",ReceiverMode.AT_LEAST_ONCE);
+        ErisReceiverImpl receiver = (ErisReceiverImpl) ssn.createReceiver("#",ReceiverMode.AT_LEAST_ONCE);
         Thread.sleep(1000); // Giving time for the peer to send the address created at the server side.
         // I need to find a way to coordinate this.
         String tempAddress = receiver.getAddress();
-        SenderImpl sender = (SenderImpl) ssn.createSender(tempAddress, SenderMode.AT_LEAST_ONCE);
-        MessageImpl msg = new MessageImpl();
+        ErisSenderImpl sender = (ErisSenderImpl) ssn.createSender(tempAddress, SenderMode.AT_LEAST_ONCE);
+        ErisMessageImpl msg = new ErisMessageImpl();
         msg.setContent("Hello World");
         Tracker t = sender.send(msg);
         t.awaitSettlement();
 
-        msg = (MessageImpl)receiver.receive();
+        msg = (ErisMessageImpl)receiver.receive();
         ssn.accept(msg);
-        System.out.println("Msg : " + msg.getContent());
+        _logger.info("Msg : " + msg.getContent());
         con.close();
     }
 }
